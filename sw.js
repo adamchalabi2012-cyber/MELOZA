@@ -1,17 +1,35 @@
-const C='maestro-v1';
-const F=['./','index.html','manifest.json','icon-192.png','icon-512.png','icon-maskable-512.png'];
-self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(C).then(c=>c.addAll(F)).then(()=>self.skipWaiting()));
+const CACHE = 'maestro-v13';
+
+// يفعّل النسخة الجديدة فوراً دون انتظار إغلاق الصفحات
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
-self.addEventListener('activate',e=>{
-  e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));
+
+// يحذف كل النسخ المحفوظة القديمة (لا يمسّ الأغاني، فهي محفوظة في مكان آخر)
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names.filter((n) => n !== CACHE).map((n) => caches.delete(n)));
+    await self.clients.claim();
+  })());
 });
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  e.respondWith(
-    fetch(e.request).then(r=>{
-      if(r.status===200||r.type==='opaque'){const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp))}
-      return r;
-    }).catch(()=>caches.match(e.request).then(r=>r||caches.match('index.html')))
-  );
+
+// يجلب النسخة الأحدث من الإنترنت أولاً، ويستخدم المحفوظة فقط عند عدم وجود اتصال
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  event.respondWith((async () => {
+    try {
+      const res = await fetch(req, { cache: 'no-cache' });
+      if (res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+      }
+      return res;
+    } catch (err) {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      throw err;
+    }
+  })());
 });
