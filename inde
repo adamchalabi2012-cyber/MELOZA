@@ -1277,35 +1277,70 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(
 </script>
 <script>
 (function(){
-var l=document.createElement('link');l.rel='manifest';l.href='manifest.json';document.head.appendChild(l);
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
-var WV=/; wv\)|Version\/[\d.]+ Chrome/.test(navigator.userAgent);
-function noDl(){toast(lang==='ar'?'التحميل غير مدعوم داخل هذا التطبيق':lang==='fr'?'Téléchargement non pris en charge dans cette application':'Downloads are not supported inside this app')}
-window.saveFile=function(blob,nm){
- if(WV){noDl();return}
- var u=URL.createObjectURL(blob),a=E('a',{href:u,download:nm});
- document.body.append(a);a.click();a.remove();
- setTimeout(function(){URL.revokeObjectURL(u)},6e4);
+'use strict';
+const GCID=ls.g('gcid')||'PASTE_YOUR_CLIENT_ID.apps.googleusercontent.com';
+const SC='https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email';
+const DR='https://www.googleapis.com/';
+const noCfg=GCID.startsWith('PASTE');
+
+/* إصلاح: الرسائل كانت تختفي خلف النوافذ المفتوحة (مثل الإعدادات) */
+window.toast=function(m){
+ const d=E('div',{class:'toast',txt:m});
+ (document.querySelector('dialog[open]')||document.body).append(d);
+ setTimeout(()=>d.remove(),3200);
 };
-window.shareOrSave=async function(b,nm){
- var f=new File([b],nm,{type:b.type||'application/octet-stream'});
- if(navigator.share){
-  try{
-   if(WV||!navigator.canShare||navigator.canShare({files:[f]})){await navigator.share({files:[f]});return}
-  }catch(e){if(e&&e.name==='AbortError')return}
- }
- if(WV){noDl();return}
- window.saveFile(b,nm);toast(t('saved'));
-};
-window.dlMany=async function(ids){
- var list=songs.filter(function(s){return ids.includes(s.id)});
- if(!list.length||!netOk())return;
- if(WV){noDl();return}
- toast(t('dlMulti'));
- for(var s of list){saveFile(s.raw.audio,songName(s));await new Promise(function(r){setTimeout(r,800)})}
-};
-})();
-</script>
-<script src="maestro-addon.js"></script>
-</body>
-</html>
+const why=e=>' ('+((e&&(e.name||e.error||e.type||e.status))||'?')+')';
+
+Object.assign(T,{
+ bio:['البصمة / الوجه','Fingerprint / Face','Empreinte / Visage'],
+ bioOn:['تفعيل الفتح بالبصمة أو الوجه','Enable fingerprint / face unlock','Activer empreinte / visage'],
+ bioOff:['إيقاف البصمة','Turn off biometrics','Désactiver'],
+ bioUse:['فتح بالبصمة / الوجه','Unlock with fingerprint / face','Déverrouiller par empreinte / visage'],
+ bioNeedPw:['لتفعيل البصمة عيّن كلمة سر أولاً (من قسم «كلمة السر» في الأعلى)','To enable biometrics, set a password first (see “Password” above)','Pour activer la biométrie, définissez d’abord un mot de passe'],
+ bioNo:['غير متاح: سجّل بصمتك أو وجهك وفعّل قفل الشاشة في إعدادات الهاتف','Unavailable: set up a screen lock and register your fingerprint / face in phone settings','Indisponible : activez le verrouillage d’écran et enregistrez empreinte / visage'],
+ bioDone:['تم تفعيل البصمة ✓','Biometrics enabled ✓','Activé ✓'],
+ gTitle:['حساب Google','Google account','Compte Google'],
+ gIn:['تسجيل الدخول بـ Google','Sign in with Google','Se connecter avec Google'],
+ gOut:['تسجيل الخروج','Sign out','Se déconnecter'],
+ gUp:['حفظ نسخة في Drive','Back up to Drive','Sauvegarder sur Drive'],
+ gDown:['استرجاع من Drive','Restore from Drive','Restaurer depuis Drive'],
+ gLater:['لاحقاً','Later','Plus tard'],
+ gWelcome:['سجّل الدخول بحساب Google ليتم حفظ نسخة من بياناتك (الأغاني، القوائم، المفضلة) في Google Drive الخاص بك.','Sign in with Google to keep a copy of your data (songs, playlists, favorites) in your Google Drive.','Connectez-vous avec Google pour garder une copie de vos données dans votre Google Drive.'],
+ gNone:['لا توجد نسخة على Drive','No backup on Drive','Aucune sauvegarde'],
+ gUping:['جارٍ الرفع…','Uploading…','Envoi…'],
+ gDowning:['جارٍ التنزيل…','Downloading…','Téléchargement…'],
+ gCfg:['ربط Google غير مفعّل بعد: ينقص Client ID في ملف maestro-addon.js','Google link not set up yet: Client ID missing in maestro-addon.js','Liaison Google non configurée : Client ID manquant dans maestro-addon.js']
+});
+
+Object.assign(T,{
+ gSaveId:['حفظ Client ID','Save Client ID','Enregistrer le Client ID'],
+ gBadId:['الـ Client ID يجب أن ينتهي بـ .apps.googleusercontent.com','Client ID must end with .apps.googleusercontent.com','Le Client ID doit se terminer par .apps.googleusercontent.com'],
+ gIdHelp:['ربط حساب Google يحتاج Client ID مرة واحدة فقط:\n١. ادخل إلى console.cloud.google.com وأنشئ مشروعاً جديداً.\n٢. من APIs & Services فعّل Google Drive API.\n٣. أعدّ شاشة الموافقة OAuth واختر External، وأضف بريدك في Test users.\n٤. من Credentials أنشئ OAuth client ID نوعه Web application.\n٥. في Authorized JavaScript origins أضف هذا الرابط بالضبط: https://adamchalabi2012-cyber.github.io\n٦. انسخ الـ Client ID (وينتهي بـ .apps.googleusercontent.com) والصقه أدناه.','Google sign-in needs a Client ID, once only:\n1. Go to console.cloud.google.com and create a project.\n2. Under APIs & Services, enable Google Drive API.\n3. Set up the OAuth consent screen as External and add your email under Test users.\n4. Under Credentials, create an OAuth client ID of type Web application.\n5. Under Authorized JavaScript origins, add exactly: https://adamchalabi2012-cyber.github.io\n6. Copy the Client ID (ending in .apps.googleusercontent.com) and paste it below.','La connexion Google nécessite un Client ID, une seule fois :\n1. Allez sur console.cloud.google.com et créez un projet.\n2. Dans APIs & Services, activez Google Drive API.\n3. Configurez l’écran de consentement OAuth en External et ajoutez votre e-mail dans Test users.\n4. Dans Credentials, créez un OAuth client ID de type Web application.\n5. Dans Authorized JavaScript origins, ajoutez exactement : https://adamchalabi2012-cyber.github.io\n6. Copiez le Client ID (se terminant par .apps.googleusercontent.com) et collez-le ci-dessous.']
+});
+function saveClientId(v){
+ const id=String(v||'').trim();
+ if(!/\.apps\.googleusercontent\.com$/.test(id))return toast(t('gBadId'));
+ ls.s('gcid',id);toast(t('saved'));
+ setTimeout(()=>location.reload(),700);
+}
+const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const ub64u=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+async function bioAvail(){
+ try{return !!(window.PublicKeyCredential&&navigator.credentials&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())}
+ catch(e){return false}
+}
+async function bioEnable(){
+ const c=await navigator.credentials.create({publicKey:{
+  challenge:crypto.getRandomValues(new Uint8Array(32)),
+  rp:{name:'MAESTRO_EFOOT'},
+  user:{id:crypto.getRandomValues(new Uint8Array(16)),name:'maestro',displayName:pname||'MAESTRO'},
+  pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+  authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'discouraged'},
+  timeout:60000
+ }});
+ ls.s('pwbio',b64u(c.rawId));
+}
+async function bioCheck(){
+ const id=ls.g('pwbio');if(!id)return false;
+ try{
+  await navigator.credentials.get({publicKey:{
