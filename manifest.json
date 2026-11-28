@@ -1,17 +1,22 @@
 {
-  "name": "MAESTRO_EFOOT",
-  "short_name": "MAESTRO",
-  "lang": "ar",
-  "dir": "rtl",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#101014",
-  "theme_color": "#00b040",
-  "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+ "name": "MAESTRO_EFOOT",
+ "short_name": "MAESTRO",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#101014",
+ "theme_color": "#7b2ff7",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  }
+ ]
 }
